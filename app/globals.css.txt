@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --shadow-panel:
+    0 1px 2px 0 rgb(15 23 42 / 0.04), 0 12px 28px -12px rgb(15 23 42 / 0.16);
+  --shadow-float:
+    0 4px 6px -2px rgb(15 23 42 / 0.06), 0 24px 48px -16px rgb(15 23 42 / 0.3);
+  --shadow-glass:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.08), 0 8px 32px -8px rgb(0 0 0 / 0.5);
+}
+
+:root {
+  --background: #eef4f1;
+  --foreground: #0f1f1a;
+  --surface: #ffffff;
+  --surface-2: #e9f1ed;
+  --primary: #0d9488;
+  --primary-foreground: #ffffff;
+  --accent: #f59e0b;
+  --accent-foreground: #451a03;
+  --muted: #e3ece8;
+  --muted-foreground: #5f7069;
+  --destructive: #e11d48;
+  --border: #d8e2dd;
+  --input: #cdd9d3;
+  --ring: #0d9488;
+}
+
+.dark {
+  --background: #0b1310;
+  --foreground: #eef4f1;
+  --surface: #13201b;
+  --surface-2: #1a2b25;
+  --primary: #2dd4bf;
+  --primary-foreground: #052e29;
+  --accent: #fbbf24;
+  --accent-foreground: #451a03;
+  --muted: #1a2b25;
+  --muted-foreground: #8fa49c;
+  --destructive: #fb7185;
+  --border: rgb(255 255 255 / 0.1);
+  --input: rgb(255 255 255 / 0.14);
+  --ring: #2dd4bf;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+  ::selection {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+}
+
+@layer utilities {
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  .animate-rise {
+    animation: rise-in 0.25s ease-out both;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

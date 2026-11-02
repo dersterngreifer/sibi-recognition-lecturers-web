@@ -1,0 +1,107 @@
+import { ACTIONS, MODEL_CONFIG_READY, SEQUENCE_LENGTH } from "@/config/modelConfig";
+
+export interface PredictionResult {
+  predictions: number[];
+  confidence: number;
+  gesture: string;
+  allProbabilities: number[];
+}
+
+/**
+ * Endpoint REST server AI. Server diharapkan membalas JSON:
+ * { prediction: string, confidence: number, probabilities: number[] }
+ */
+const API_URL = "/api/predict";
+
+export async function loadModel(): Promise<boolean> {
+  // Karena memakai REST API yang stateless, kita anggap selalu tersedia.
+  return true;
+}
+
+export async function predictGesture(
+  sequence: Float32Array[],
+): Promise<PredictionResult> {
+  if (!MODEL_CONFIG_READY) {
+    return {
+      predictions: [],
+      confidence: 0,
+      gesture: "Konfigurasi model belum diisi",
+      allProbabilities: [],
+    };
+  }
+
+  const seqLength = SEQUENCE_LENGTH as number;
+
+  if (sequence.length < seqLength) {
+    return {
+      predictions: [],
+      confidence: 0,
+      gesture: "Memuat frame...",
+      allProbabilities: [],
+    };
+  }
+
+  try {
+    const sequenceData = sequence.map((frame) => Array.from(frame));
+
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sequence: sequenceData }),
+    });
+
+    // Cek apakah server membalas dengan HTML (error/loading screen)
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      const textResponse = await response.text();
+      console.error(
+        "❌ Server tidak membalas JSON. Balasan:",
+        textResponse.substring(0, 150),
+      );
+      return {
+        predictions: [],
+        confidence: 0,
+        gesture: "Server AI Loading/Sibuk...",
+        allProbabilities: [],
+      };
+    }
+
+    const data = await response.json();
+
+    if (data.error) {
+      console.error("API Error:", data.error);
+      return {
+        predictions: [],
+        confidence: 0,
+        gesture: "API Error",
+        allProbabilities: [],
+      };
+    }
+
+    const bestIndex = ACTIONS.indexOf(data.prediction);
+
+    return {
+      predictions: [bestIndex !== -1 ? bestIndex : 0],
+      confidence: data.confidence,
+      gesture: data.prediction,
+      allProbabilities: data.probabilities || [],
+    };
+  } catch (error) {
+    console.error("Gagal mengirim prediksi:", error);
+    return {
+      predictions: [],
+      confidence: 0,
+      gesture: "Gagal Konek Server",
+      allProbabilities: [],
+    };
+  }
+}
+
+export function isModelLoaded(): boolean {
+  // REST API bersifat stateless → selalu siap dipanggil.
+  return true;
+}
+
+export function disposeModel(): void {
+  // Tidak ada koneksi khusus yang perlu ditutup.
+}

@@ -1,0 +1,138 @@
+"use client";
+
+import { useState } from "react";
+import { BookOpen, Play, Search, Volume2 } from "lucide-react";
+import { Sidebar } from "@/components/sidebar";
+import {
+  CATEGORY_STYLES,
+  VOCAB_CATEGORIES,
+  VOCAB_LIST,
+  type VocabCategory,
+} from "@/lib/dummyData";
+import { cn } from "@/lib/utils";
+
+type Filter = "Semua" | VocabCategory;
+
+const FILTERS: Filter[] = ["Semua", ...VOCAB_CATEGORIES];
+
+export default function Kosakata() {
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<Filter>("Semua");
+
+  const filtered = VOCAB_LIST.filter((item) => {
+    const matchCategory = filter === "Semua" || item.category === filter;
+    const matchQuery = item.word
+      .toLowerCase()
+      .includes(query.trim().toLowerCase());
+    return matchCategory && matchQuery;
+  });
+
+  return (
+    <div className="min-h-dvh bg-background">
+      <Sidebar />
+      <main className="mx-auto max-w-5xl px-4 pb-16 pt-24 lg:pl-[19.5rem] lg:pr-8 lg:pt-10">
+        <header>
+          <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-primary">
+            <BookOpen className="size-3.5" />
+            Kosakata
+          </p>
+          <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-extrabold tracking-tight text-foreground lg:text-3xl">
+                Koleksi Isyarat SIBI
+              </h1>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                Jelajahi label isyarat yang didukung. Video contoh menyusul —
+                daftar ini masih berupa data sementara.
+              </p>
+            </div>
+            <span className="rounded-full border border-border bg-surface-2 px-3 py-1 text-xs font-semibold text-muted-foreground">
+              {filtered.length}/{VOCAB_LIST.length} isyarat
+            </span>
+          </div>
+        </header>
+
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 basis-64">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Cari isyarat…"
+              className="w-full rounded-2xl border border-border bg-surface-2 py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+            />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {FILTERS.map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                  filter === f
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-surface-2 text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="mt-8 rounded-3xl border border-border bg-surface/60 p-10 text-center">
+            <p className="text-sm font-semibold text-foreground">
+              Tidak ada isyarat yang cocok
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Coba kata kunci atau kategori lain.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {filtered.map((item) => {
+              const styles = CATEGORY_STYLES[item.category];
+              return (
+                <button
+                  key={item.id}
+                  className="group overflow-hidden rounded-3xl border border-border bg-surface/60 text-left shadow-panel transition-all hover:-translate-y-0.5 hover:shadow-float"
+                >
+                  <div
+                    className={cn(
+                      "relative grid aspect-[4/3] place-items-center bg-gradient-to-br",
+                      styles.gradient,
+                    )}
+                  >
+                    <span className="text-4xl font-extrabold text-white drop-shadow">
+                      {item.word[0]}
+                    </span>
+                    <span className="absolute right-2.5 top-2.5 grid size-8 place-items-center rounded-full bg-white/20 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                      <Play className="size-4 fill-current" />
+                    </span>
+                  </div>
+                  <div className="p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-bold text-foreground">
+                        {item.word}
+                      </p>
+                      <Volume2 className="size-4 shrink-0 text-muted-foreground" />
+                    </div>
+                    <span
+                      className={cn(
+                        "mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold",
+                        styles.chip,
+                      )}
+                    >
+                      {item.category}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

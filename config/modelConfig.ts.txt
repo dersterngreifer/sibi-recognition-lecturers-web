@@ -1,0 +1,97 @@
+/**
+ * KONFIGURASI MODEL
+ * ----------------------------------------------------------------------------
+ * Label kelas sesuai urutan output model (harus SAMA PERSIS dengan urutan
+ * `actions` saat training di Python / file .keras). Label sudah terisi.
+ *
+ * ⚠️ SEBAGIAN ISIAN MASIH KOSONG (null) dan dilengkapi kemudian:
+ *    - SEQUENCE_LENGTH   → jumlah frame per urutan isyarat (mis. 45)
+ *    - STABILITY_FRAMES  → jumlah prediksi beruntun untuk stabilisasi (mis. 4)
+ *    - THRESHOLD         → batas confidence minimum (mis. 0.80)
+ *    - MODEL_PATH        → path/lokasi model bila dipakai langsung (mis. '/models/tfjs_model/model.json')
+ *
+ * Saat semua nilai diisi, `MODEL_CONFIG_READY` otomatis menjadi `true`
+ * dan fitur prediksi isyarat di halaman aktif.
+ */
+
+export const ACTIONS: string[] = [
+  "Adik",
+  "Agustus",
+  "Apa",
+  "April",
+  "Ayah",
+  "Baik",
+  "Berapa",
+  "Bertemu",
+  "Cantik",
+  "Dari",
+  "Desember",
+  "Dia",
+  "Dimana",
+  "Februari",
+  "Ganteng",
+  "Gemuk",
+  "Hallo",
+  "Hobi",
+  "Ibu",
+  "Januari",
+  "Juli",
+  "Jumat",
+  "Juni",
+  "Jurusan",
+  "Kabar",
+];
+
+// ---------------------------------------------------------------------------
+// BELUM DIISI — dilanjutkan nanti
+// ---------------------------------------------------------------------------
+
+export const SEQUENCE_LENGTH: number | null = null; // contoh: 45
+export const STABILITY_FRAMES: number | null = null; // contoh: 4
+export const THRESHOLD: number | null = null; // contoh: 0.8
+export const MODEL_PATH: string | null = null; // contoh: "/models/tfjs_model/model.json"
+
+export const MODEL_CONFIG_READY: boolean =
+  SEQUENCE_LENGTH !== null &&
+  SEQUENCE_LENGTH > 0 &&
+  STABILITY_FRAMES !== null &&
+  STABILITY_FRAMES > 0 &&
+  THRESHOLD !== null &&
+  THRESHOLD > 0 &&
+  MODEL_PATH !== null;
+
+// ---------------------------------------------------------------------------
+// Konfigurasi keypoint (tetap, sesuai ekstraksi fitur saat training)
+// ---------------------------------------------------------------------------
+
+export const KEYPOINTS_CONFIG = {
+  POSE_KEYPOINTS: 33,
+  POSE_DIMENSIONS: 4, // x, y, z, visibility
+  LEFT_HAND_KEYPOINTS: 21,
+  RIGHT_HAND_KEYPOINTS: 21,
+  HAND_DIMENSIONS: 3, // x, y, z
+  TOTAL_FEATURES: 258, // (33*4) + (21*3) + (21*3)
+};
+
+// Warna skeleton MediaPipe
+export const COLORS = {
+  POSE: {
+    point: { r: 80, g: 22, b: 10 },
+    line: { r: 80, g: 44, b: 121 },
+  },
+  LEFT_HAND: {
+    point: { r: 121, g: 22, b: 76 },
+    line: { r: 121, g: 44, b: 250 },
+  },
+  RIGHT_HAND: {
+    point: { r: 245, g: 117, b: 66 },
+    line: { r: 245, g: 66, b: 230 },
+  },
+};
+
+// Warna indikator confidence
+export const PREDICTION_COLORS = {
+  high: { r: 0, g: 210, b: 0 }, // Hijau
+  medium: { r: 255, g: 165, b: 0 }, // Oranye
+  low: { r: 255, g: 0, b: 0 }, // Merah
+};

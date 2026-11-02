@@ -1,26 +1,84 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-fraunces), serif;
+  --font-sans: var(--font-inter), sans-serif;
+
+  --color-surface: var(--surface);
+  --color-surface-border: var(--surface-border);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+
+  --color-teal: var(--teal);
+  --color-teal-soft: var(--teal-soft);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+
+  --shadow-panel: 0 1px 2px rgba(28, 37, 33, 0.04), 0 8px 24px rgba(28, 37, 33, 0.06);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/*
+  Palette — chosen for a hand-craft / educational tool, not a generic SaaS look:
+  ink       #1C2521  deep warm charcoal-green (text)
+  ivory     #FAF7F0  warm paper background (base, not the AI-default cream)
+  teal      #1F6F6B  primary accent — calm, trust, "signing hands"
+  amber     #E8A33D  secondary accent — highlights / active states
+  ok        #2F9E5B  correct detection
+  warn      #C64A3A  wrong detection
+*/
+:root {
+  --background: #F4F7F6;
+  --foreground: #111A18;
+  --surface: #FFFFFF;
+  --surface-border: #D2E0DC;
+  --ink: #111A18;
+  --ink-soft: #5B6E68;
+
+  --teal: #00A896;
+  --teal-soft: #D2FAF4;
+  --amber: #FF9900;
+  --amber-soft: #FFEDD4;
+  --ok: #00D14E;
+  --ok-soft: #D4FBE4;
+  --warn: #FF3333;
+  --warn-soft: #FFE3E3;
+}
+
+.dark {
+  --background: #0B1311;
+  --foreground: #FFFFFF;
+  --surface: #14211E;
+  --surface-border: #2A423C;
+  --ink: #FFFFFF;
+  --ink-soft: #C0D3CC;
+
+  --teal: #1EEFD6;
+  --teal-soft: #0E4B44;
+  --amber: #FFCC00;
+  --amber-soft: #524200;
+  --ok: #22E66B;
+  --ok-soft: #0D4722;
+  --warn: #FF5757;
+  --warn-soft: #4A1919;
+}
+
+@layer base {
+  * {
+    @apply border-surface-border outline-teal/50;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+  h1, h2, h3 {
+    @apply font-display;
+  }
 }

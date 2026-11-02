@@ -1,0 +1,181 @@
+import { ACTIONS } from "@/config/modelConfig";
+
+export type Role = "S" | "P" | "O" | "K";
+
+export interface QuizWord {
+  word: string;
+  role: Role;
+}
+
+export interface QuizSentence {
+  kalimat: string;
+  spok: Record<Role, string>;
+  words: QuizWord[];
+}
+
+export const QUIZ_SENTENCES: QuizSentence[] = [
+  {
+    kalimat: "Hallo Ibu apa kabar",
+    spok: { S: "Ibu", P: "Apa", O: "Kabar", K: "Hallo" },
+    words: [
+      { word: "Hallo", role: "K" },
+      { word: "Ibu", role: "S" },
+      { word: "Apa", role: "P" },
+      { word: "Kabar", role: "O" },
+    ],
+  },
+  {
+    kalimat: "Ayah bertemu adik",
+    spok: { S: "Ayah", P: "Bertemu", O: "Adik", K: "-" },
+    words: [
+      { word: "Ayah", role: "S" },
+      { word: "Bertemu", role: "P" },
+      { word: "Adik", role: "O" },
+    ],
+  },
+  {
+    kalimat: "Dia dari mana",
+    spok: { S: "Dia", P: "Dari", O: "Dimana", K: "-" },
+    words: [
+      { word: "Dia", role: "S" },
+      { word: "Dari", role: "P" },
+      { word: "Dimana", role: "O" },
+    ],
+  },
+  {
+    kalimat: "Ibu hobi apa",
+    spok: { S: "Ibu", P: "Hobi", O: "Apa", K: "-" },
+    words: [
+      { word: "Ibu", role: "S" },
+      { word: "Hobi", role: "P" },
+      { word: "Apa", role: "O" },
+    ],
+  },
+  {
+    kalimat: "Apa kabar baik",
+    spok: { S: "Apa", P: "Kabar", O: "Baik", K: "-" },
+    words: [
+      { word: "Apa", role: "S" },
+      { word: "Kabar", role: "P" },
+      { word: "Baik", role: "O" },
+    ],
+  },
+  {
+    kalimat: "Adik cantik dari Jumat",
+    spok: { S: "Adik", P: "Cantik", O: "-", K: "Dari Jumat" },
+    words: [
+      { word: "Adik", role: "S" },
+      { word: "Cantik", role: "P" },
+      { word: "Dari", role: "K" },
+      { word: "Jumat", role: "K" },
+    ],
+  },
+  {
+    kalimat: "Bertemu adik di Desember",
+    spok: { S: "-", P: "Bertemu", O: "Adik", K: "Desember" },
+    words: [
+      { word: "Bertemu", role: "P" },
+      { word: "Adik", role: "O" },
+      { word: "Desember", role: "K" },
+    ],
+  },
+];
+
+export const ROLE_LABELS: Record<Role, string> = {
+  S: "Subjek",
+  P: "Predikat",
+  O: "Objek",
+  K: "Keterangan",
+};
+
+export const ROLE_COLORS: Record<Role, string> = {
+  S: "bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800",
+  P: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800",
+  O: "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800",
+  K: "bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950/60 dark:text-violet-300 dark:border-violet-800",
+};
+
+// ---------------------------------------------------------------------------
+// Kosakata dummy — dibangkitkan dari label ACTIONS (data sementara)
+// ---------------------------------------------------------------------------
+
+export type VocabCategory =
+  | "Orang"
+  | "Waktu"
+  | "Sapaan"
+  | "Sifat"
+  | "Umum";
+
+const CATEGORY_MAP: Record<string, VocabCategory> = {
+  Adik: "Orang",
+  Ayah: "Orang",
+  Ibu: "Orang",
+  Dia: "Orang",
+  Januari: "Waktu",
+  Februari: "Waktu",
+  April: "Waktu",
+  Juni: "Waktu",
+  Juli: "Waktu",
+  Agustus: "Waktu",
+  Desember: "Waktu",
+  Jumat: "Waktu",
+  Hallo: "Sapaan",
+  Apa: "Sapaan",
+  Kabar: "Sapaan",
+  Baik: "Sapaan",
+  Berapa: "Sapaan",
+  Dimana: "Sapaan",
+  Cantik: "Sifat",
+  Ganteng: "Sifat",
+  Gemuk: "Sifat",
+  Bertemu: "Umum",
+  Dari: "Umum",
+  Hobi: "Umum",
+  Jurusan: "Umum",
+};
+
+export interface VocabCard {
+  id: number;
+  word: string;
+  category: VocabCategory;
+}
+
+export const VOCAB_CATEGORIES: VocabCategory[] = [
+  "Orang",
+  "Waktu",
+  "Sapaan",
+  "Sifat",
+  "Umum",
+];
+
+export const VOCAB_LIST: VocabCard[] = ACTIONS.map((word, i) => ({
+  id: i + 1,
+  word,
+  category: CATEGORY_MAP[word] ?? "Umum",
+}));
+
+export const CATEGORY_STYLES: Record<
+  VocabCategory,
+  { gradient: string; chip: string }
+> = {
+  Orang: {
+    gradient: "from-teal-500 to-emerald-600",
+    chip: "bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300",
+  },
+  Waktu: {
+    gradient: "from-indigo-500 to-violet-600",
+    chip: "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300",
+  },
+  Sapaan: {
+    gradient: "from-amber-400 to-orange-500",
+    chip: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300",
+  },
+  Sifat: {
+    gradient: "from-pink-500 to-rose-600",
+    chip: "bg-pink-100 text-pink-700 dark:bg-pink-950/60 dark:text-pink-300",
+  },
+  Umum: {
+    gradient: "from-cyan-500 to-sky-600",
+    chip: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300",
+  },
+};

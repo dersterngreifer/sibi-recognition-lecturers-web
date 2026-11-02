@@ -1,0 +1,37 @@
+"use client";
+
+import { useSyncExternalStore } from "react";
+import { useTheme } from "next-themes";
+import { Moon, Sun } from "lucide-react";
+
+const emptySubscribe = () => () => {};
+
+function useMounted() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
+}
+
+export function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme();
+  const mounted = useMounted();
+
+  const isDark = mounted && resolvedTheme === "dark";
+
+  return (
+    <button
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      aria-label={isDark ? "Ganti ke tema terang" : "Ganti ke tema gelap"}
+      title={isDark ? "Tema Terang" : "Tema Gelap"}
+      className="grid size-10 place-items-center rounded-2xl border border-border bg-surface-2 text-muted-foreground shadow-panel transition-colors hover:bg-primary hover:text-primary-foreground"
+    >
+      {isDark ? (
+        <Sun className="size-5" />
+      ) : (
+        <Moon className="size-5" />
+      )}
+    </button>
+  );
+}

@@ -1,0 +1,351 @@
+"use client";
+
+import { useState } from "react";
+import { Home as HomeIcon, Layers, ShieldAlert, Target, BookOpen } from "lucide-react";
+import { Sidebar } from "@/components/sidebar";
+import CameraPanel from "@/components/camera-panel";
+import { ACTIONS, MODEL_CONFIG_READY } from "@/config/modelConfig";
+import {
+  QUIZ_SENTENCES,
+  ROLE_COLORS,
+  ROLE_LABELS,
+  type QuizSentence,
+  type Role,
+} from "@/lib/dummyData";
+import { cn } from "@/lib/utils";
+
+const ROLE_ORDER: Role[] = ["S", "P", "O", "K"];
+
+function PageHeader() {
+  return (
+    <header>
+      <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-primary">
+        <HomeIcon className="size-3.5" />
+        Beranda
+      </p>
+      <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-foreground lg:text-3xl">
+            Studio Praktik Isyarat
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Latih isyarat SIBI secara langsung dengan bantuan kamera — deteksi
+            pose dan tangan dalam waktu nyata.
+          </p>
+        </div>
+        <span className="rounded-full border border-border bg-surface-2 px-3 py-1 text-xs font-semibold text-muted-foreground">
+          {ACTIONS.length} label isyarat
+        </span>
+      </div>
+    </header>
+  );
+}
+
+function ConfigBanner() {
+  if (MODEL_CONFIG_READY) return null;
+
+  return (
+    <div className="flex items-start gap-3 rounded-3xl border border-amber-300 bg-amber-500/10 p-4 dark:border-amber-800">
+      <span className="grid size-9 shrink-0 place-items-center rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
+        <ShieldAlert className="size-5" />
+      </span>
+      <div>
+        <p className="text-sm font-bold text-foreground">
+          Konfigurasi model belum lengkap
+        </p>
+        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+          Isi <code className="rounded bg-surface-2 px-1 py-0.5 font-mono text-[11px] text-primary">SEQUENCE_LENGTH</code>,{" "}
+          <code className="rounded bg-surface-2 px-1 py-0.5 font-mono text-[11px] text-primary">STABILITY_FRAMES</code>,{" "}
+          <code className="rounded bg-surface-2 px-1 py-0.5 font-mono text-[11px] text-primary">THRESHOLD</code>, dan{" "}
+          <code className="rounded bg-surface-2 px-1 py-0.5 font-mono text-[11px] text-primary">MODEL_PATH</code>{" "}
+          di <code className="rounded bg-surface-2 px-1 py-0.5 font-mono text-[11px] text-primary">config/modelConfig.ts</code>.
+          Kamera dan kerangka tetap berfungsi — hanya prediksi isyarat yang
+          belum aktif.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function LiveScan({
+  recentGestures,
+  lastConfidence,
+}: {
+  recentGestures: string[];
+  lastConfidence: number;
+}) {
+  const bars = [0.8, 0.55, 0.3];
+  const latest = recentGestures[recentGestures.length - 1];
+  const pct = Math.round(lastConfidence * 100);
+
+  return (
+    <section className="rounded-3xl border border-border bg-surface/60 p-5 shadow-panel">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="grid size-9 place-items-center rounded-2xl bg-primary/10 text-primary">
+            <Target className="size-5" />
+          </span>
+          <div>
+            <h2 className="text-sm font-bold text-foreground">
+              Deteksi Terkini
+            </h2>
+            <p className="text-[11px] text-muted-foreground">
+              Isyarat terakhir yang terkonfirmasi
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-end gap-1.5">
+        {bars.map((height, i) => (
+          <span
+            key={i}
+            className="w-6 rounded-t-md bg-primary/70"
+            style={{ height: `${height * 44}px` }}
+          />
+        ))}
+        <div className="ml-2">
+          <p className="text-2xl font-extrabold text-primary">
+            {latest ?? "—"}
+          </p>
+          {latest && (
+            <p className="text-xs font-semibold text-muted-foreground">
+              keyakinan {pct}%
+            </p>
+          )}
+        </div>
+      </div>
+
+      {recentGestures.length > 0 ? (
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {recentGestures.map((gesture, i) => (
+            <span
+              key={`${gesture}-${i}`}
+              className="rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[11px] font-semibold text-foreground"
+            >
+              {gesture}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 text-xs text-muted-foreground">
+          Belum ada isyarat terdeteksi. Aktifkan kamera lalu tunjukkan isyarat
+          SIBI di depan layar.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function QuizCard({
+  quiz,
+  active,
+  onSelect,
+}: {
+  quiz: QuizSentence;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      onClick={onSelect}
+      className={cn(
+        "w-full rounded-3xl border p-5 text-left transition-all",
+        active
+          ? "border-primary bg-primary/10 shadow-float"
+          : "border-border bg-surface/60 shadow-panel hover:border-primary/50",
+      )}
+    >
+      <p className="text-lg font-extrabold tracking-tight text-foreground">
+        {quiz.kalimat}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {ROLE_ORDER.map((role) => (
+          <span
+            key={role}
+            className={cn(
+              "rounded-full border px-2 py-0.5 text-[10px] font-bold",
+              ROLE_COLORS[role],
+            )}
+          >
+            {ROLE_LABELS[role]}: {quiz.spok[role]}
+          </span>
+        ))}
+      </div>
+    </button>
+  );
+}
+
+export default function Beranda() {
+  const [recentGestures, setRecentGestures] = useState<string[]>([]);
+  const [lastConfidence, setLastConfidence] = useState(0);
+  const [selectedQuiz, setSelectedQuiz] = useState<number>(0);
+  const [performedWords, setPerformedWords] = useState<Set<number>>(
+    new Set(),
+  );
+
+  const quiz = QUIZ_SENTENCES[selectedQuiz];
+
+  const handleGestureConfirmed = (label: string) => {
+    setRecentGestures((prev) => [...prev.slice(-4), label]);
+
+    const idx = quiz.words.findIndex((w) => w.word === label);
+    if (idx !== -1) {
+      setPerformedWords((prev) => {
+        if (prev.has(idx)) return prev;
+        const next = new Set(prev);
+        next.add(idx);
+        return next;
+      });
+    }
+  };
+
+  const quizCompletion =
+    quiz.words.length === 0
+      ? 0
+      : Math.round((performedWords.size / quiz.words.length) * 100);
+
+  return (
+    <div className="min-h-dvh bg-background">
+      <Sidebar />
+      <main className="mx-auto max-w-5xl px-4 pb-16 pt-24 lg:pl-[19.5rem] lg:pr-8 lg:pt-10">
+        <PageHeader />
+
+        <div className="mt-6 space-y-6">
+          <ConfigBanner />
+
+          <section>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-9 place-items-center rounded-2xl bg-primary/10 text-primary">
+                  <Layers className="size-5" />
+                </span>
+                <div>
+                  <h2 className="text-sm font-bold text-foreground">
+                    Pengenalan Real-Time
+                  </h2>
+                  <p className="text-[11px] text-muted-foreground">
+                    Nyalakan kamera untuk memulai
+                  </p>
+                </div>
+              </div>
+            </div>
+            <CameraPanel
+              onPrediction={(label, confidence) => {
+                setLastConfidence(confidence);
+                if (label) {
+                  setRecentGestures((prev) => [...prev.slice(-4), label]);
+                }
+              }}
+              onGestureConfirmed={handleGestureConfirmed}
+            />
+          </section>
+
+          <LiveScan recentGestures={recentGestures} lastConfidence={lastConfidence} />
+
+          <section>
+            <div className="mb-3 flex items-center gap-2.5">
+              <span className="grid size-9 place-items-center rounded-2xl bg-primary/10 text-primary">
+                <BookOpen className="size-5" />
+              </span>
+              <div>
+                <h2 className="text-sm font-bold text-foreground">
+                  Latihan Kalimat
+                </h2>
+                <p className="text-[11px] text-muted-foreground">
+                  Pilih kalimat, lalu isyaratkan kata-katanya satu per satu
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              {QUIZ_SENTENCES.map((q, i) => (
+                <QuizCard
+                  key={i}
+                  quiz={q}
+                  active={i === selectedQuiz}
+                  onSelect={() => {
+                    setSelectedQuiz(i);
+                    setPerformedWords(new Set());
+                  }}
+                />
+              ))}
+            </div>
+
+            {quiz && (
+              <div className="mt-4 rounded-3xl border border-border bg-surface/60 p-5 shadow-panel">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm font-bold text-foreground">
+                    Kalimat aktif
+                  </p>
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary">
+                    {quizCompletion}% selesai
+                  </span>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {quiz.words.map((w, i) => {
+                    const done = performedWords.has(i);
+                    return (
+                      <span
+                        key={i}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm font-bold transition-colors",
+                          done
+                            ? "border-emerald-400 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                            : ROLE_COLORS[w.role],
+                        )}
+                      >
+                        {done ? "✓" : null} {w.word}
+                      </span>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                  {ROLE_ORDER.map((role) => (
+                    <div
+                      key={role}
+                      className="rounded-xl border border-border bg-background/60 p-2"
+                    >
+                      <p
+                        className={cn(
+                          "font-bold",
+                          ROLE_COLORS[role].split(" ")[0],
+                          ROLE_COLORS[role].split(" ")[1],
+                        )}
+                      >
+                        {ROLE_LABELS[role]}
+                      </p>
+                      <p className="mt-0.5 text-muted-foreground">
+                        {quiz.spok[role] === "-"
+                          ? "—"
+                          : quiz.spok[role]}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-3xl border border-border bg-surface/60 p-5 shadow-panel">
+            <h2 className="text-sm font-bold text-foreground">
+              Referensi Isyarat ({ACTIONS.length})
+            </h2>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {ACTIONS.map((word) => (
+                <span
+                  key={word}
+                  className="rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-primary"
+                >
+                  {word}
+                </span>
+              ))}
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  );
+}

@@ -1,0 +1,405 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Camera as CameraIcon,
+  CameraOff,
+  Sparkles,
+  RotateCw,
+} from "lucide-react";
+import {
+  MODEL_CONFIG_READY,
+  STABILITY_FRAMES,
+  THRESHOLD,
+} from "@/config/modelConfig";
+import {
+  calculateShoulderDistance,
+  detectPoseLandmarks,
+  drawLandmarks,
+  extractKeypoints,
+  initializeMediaPipe,
+  isHandDetected,
+  isPoseDetected,
+} from "@/lib/mediapipeUtils";
+import { predictGesture } from "@/lib/modelUtils";
+import { cn } from "@/lib/utils";
+
+interface CameraPanelProps {
+  onPrediction?: (label: string | null, confidence: number) => void;
+  onGestureConfirmed?: (label: string) => void;
+}
+
+type CameraState = "idle" | "starting" | "failed" | "running";
+
+export default function CameraPanel({
+  onPrediction,
+  onGestureConfirmed,
+}: CameraPanelProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const offscreenCanvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const seqBufferRef = useRef<Float32Array[]>([]);
+  const detectionRef = useRef<boolean>(false);
+  const lastDetectionTimeRef = useRef<number>(0);
+  const confirmedRef = useRef<boolean>(false);
+
+  const [status, setStatus] = useState<CameraState>("idle");
+  const [handDetected, setHandDetected] = useState(false);
+  const [poseDetected, setPoseDetected] = useState(false);
+  const [showSkeleton, setShowSkeleton] = useState(true);
+  const [fps, setFps] = useState(0);
+  const [estDistance, setEstDistance] = useState(0);
+  const [cameraLatency, setCameraLatency] = useState(0);
+  const [isStreamAvailable, setIsStreamAvailable] = useState(true);
+  const [activePrediction, setActivePrediction] = useState<string | null>(null);
+  const [activeConfidence, setActiveConfidence] = useState(0);
+
+  const confidencePct = Math.round(activeConfidence * 100);
+
+  const getConfidenceColor = useCallback((confidence: number): string => {
+    if (confidence >= 0.85) return "border-emerald-400 bg-emerald-500/15";
+    if (confidence >= 0.7) return "border-amber-400 bg-amber-500/15";
+    return "border-rose-400 bg-rose-500/15";
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    if (!navigator.mediaDevices?.getUserMedia) return;
+
+    setStatus("starting");
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: "user",
+        },
+        audio: false,
+      });
+
+      streamRef.current = stream;
+
+      const video = videoRef.current;
+      if (!video) return;
+
+      video.srcObject = stream;
+      await video.play();
+      video.setAttribute("playsinline", "true");
+
+      if (!video.width) {
+        video.width = video.videoWidth;
+        video.height = video.videoHeight;
+      }
+
+      setIsStreamAvailable(true);
+      setStatus("running");
+
+      const mpReady = await initializeMediaPipe();
+      if (!mpReady) {
+        console.error("MediaPipe gagal dimuat");
+      }
+
+      const startTime = performance.now();
+      if (!offscreenCanvasRef.current) {
+        const offscreen = document.createElement("canvas");
+        offscreen.width = 640;
+        offscreen.height = 360;
+        offscreenCanvasRef.current = offscreen;
+      }
+
+      lastDetectionTimeRef.current = performance.now();
+
+      setFps(0);
+      setCameraLatency(0);
+      setActivePrediction(null);
+
+      detectionRef.current = true;
+      const detectionLoop = async () => {
+        while (detectionRef.current) {
+          const loopStart = performance.now();
+          const now = performance.now();
+          setCameraLatency(Math.round(now - startTime));
+
+          const results = await detectPoseLandmarks(offscreenCanvasRef.current!);
+
+          let handsPresent = false;
+
+          if (results) {
+            handsPresent = isHandDetected(results);
+            const posePresent = isPoseDetected(results);
+            setHandDetected(handsPresent);
+            setPoseDetected(posePresent);
+
+            const distance = calculateShoulderDistance(results, 640, 360);
+            setEstDistance(distance);
+
+            if (isStreamAvailable) {
+              drawLandmarks(canvasRef.current!, results, showSkeleton);
+            }
+
+            if (MODEL_CONFIG_READY) {
+              const frameKeypoints = extractKeypoints(results);
+              if (frameKeypoints.length > 0) {
+                seqBufferRef.current.push(frameKeypoints);
+              }
+            }
+          }
+
+          if (MODEL_CONFIG_READY) {
+            const seqLength = (STABILITY_FRAMES as number) ?? 1;
+
+            if (seqBufferRef.current.length >= seqLength) {
+              const cooldownElapsed =
+                now - lastDetectionTimeRef.current >
+                (STABILITY_FRAMES as number) * 400;
+
+              if (handsPresent && cooldownElapsed) {
+                if (!confirmedRef.current) {
+                  const pred = await predictGesture(seqBufferRef.current);
+                  if (pred.confidence >= (THRESHOLD as number) && pred.gesture) {
+                    confirmedRef.current = true;
+                    lastDetectionTimeRef.current = now;
+                    setActiveConfidence(pred.confidence);
+                    setActivePrediction(pred.gesture);
+                    seqBufferRef.current = [];
+                    onPrediction?.(pred.gesture, pred.confidence);
+                    onGestureConfirmed?.(pred.gesture);
+                  }
+                } else if (now - lastDetectionTimeRef.current > 1500) {
+                  confirmedRef.current = false;
+                  setActivePrediction(null);
+                }
+              } else {
+                if (seqBufferRef.current.length > seqLength) {
+                  seqBufferRef.current.shift();
+                }
+              }
+            }
+          }
+
+          const loopTime = performance.now() - loopStart;
+          setFps(Math.round(1000 / Math.max(loopTime, 1)));
+
+          await new Promise((r) => setTimeout(r, 50));
+        }
+      };
+
+      detectionLoop();
+    } catch (error) {
+      console.error("Gagal mengakses kamera:", error);
+      setStatus("failed");
+      setIsStreamAvailable(false);
+    }
+  }, [isStreamAvailable, showSkeleton, onPrediction, onGestureConfirmed]);
+
+  const stopCamera = useCallback(async () => {
+    detectionRef.current = false;
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setStatus("idle");
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      detectionRef.current = false;
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="relative overflow-hidden rounded-3xl border border-border bg-black shadow-panel">
+        <div className="relative aspect-video">
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            playsInline
+            className="h-full w-full -scale-x-100 object-cover"
+          />
+
+          <canvas
+            ref={canvasRef}
+            className="pointer-events-none absolute inset-0 h-full w-full -scale-x-100 object-cover"
+          />
+
+          {status === "idle" && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-surface to-surface-2">
+              <div className="grid size-16 place-items-center rounded-3xl bg-primary/10 text-primary">
+                <CameraIcon className="size-8" />
+              </div>
+              <div className="text-center">
+                <p className="text-base font-bold text-foreground">
+                  Kamera belum aktif
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Nyalakan kamera untuk memulai pengenalan isyarat
+                </p>
+              </div>
+              <button
+                onClick={startCamera}
+                className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-float transition-transform hover:scale-[1.03] active:scale-95"
+              >
+                <CameraIcon className="size-4" />
+                Nyalakan Kamera
+              </button>
+            </div>
+          )}
+
+          {status === "starting" && (
+            <div className="absolute inset-0 grid place-items-center bg-surface">
+              <div className="flex flex-col items-center gap-3">
+                <div className="size-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                <p className="text-sm font-medium text-muted-foreground">
+                  Menghubungkan kamera…
+                </p>
+              </div>
+            </div>
+          )}
+
+          {status === "failed" && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-surface px-6 text-center">
+              <div className="grid size-12 place-items-center rounded-2xl bg-rose-500/15 text-rose-500">
+                <CameraOff className="size-6" />
+              </div>
+              <p className="text-sm font-semibold text-foreground">
+                Gagal mengakses kamera
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Periksa izin kamera di browser atau pastikan perangkat kamera
+                tersedia.
+              </p>
+              <button
+                onClick={startCamera}
+                className="rounded-xl bg-surface-2 px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-border"
+              >
+                Coba Lagi
+              </button>
+            </div>
+          )}
+
+          {status === "running" && (
+            <>
+              {!MODEL_CONFIG_READY && (
+                <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full border border-border bg-background/80 px-3 py-1.5 text-[11px] font-semibold text-foreground backdrop-blur">
+                  <Sparkles className="size-3.5 text-amber-500" />
+                  Mode Deteksi Skeleton
+                </div>
+              )}
+
+              <div
+                className={cn(
+                  "absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-2xl border px-4 py-2 backdrop-blur transition-all",
+                  activePrediction
+                    ? getConfidenceColor(activeConfidence)
+                    : "border-border bg-background/80",
+                )}
+              >
+                {activePrediction ? (
+                  <>
+                    <span className="text-sm font-bold text-foreground">
+                      {activePrediction}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-xs font-bold",
+                        activeConfidence >= 0.85
+                          ? "text-emerald-500"
+                          : activeConfidence >= 0.7
+                            ? "text-amber-500"
+                            : "text-rose-500",
+                      )}
+                    >
+                      {confidencePct}%
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="size-2 animate-pulse rounded-full bg-red-500" />
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      Mendeteksi…
+                    </span>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+              handDetected && status === "running"
+                ? "border-emerald-300 bg-emerald-500/10 text-emerald-600 dark:border-emerald-700 dark:text-emerald-400"
+                : "border-border bg-surface-2 text-muted-foreground",
+            )}
+          >
+            <span
+              className={cn(
+                "size-1.5 rounded-full",
+                handDetected && status === "running"
+                  ? "bg-emerald-500"
+                  : "bg-muted-foreground",
+              )}
+            />
+            Tangan
+          </span>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+              poseDetected && status === "running"
+                ? "border-cyan-300 bg-cyan-500/10 text-cyan-600 dark:border-cyan-700 dark:text-cyan-400"
+                : "border-border bg-surface-2 text-muted-foreground",
+            )}
+          >
+            <span
+              className={cn(
+                "size-1.5 rounded-full",
+                poseDetected && status === "running"
+                  ? "bg-cyan-500"
+                  : "bg-muted-foreground",
+              )}
+            />
+            Tubuh
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+            <RotateCw className="size-3" />
+            {fps} FPS
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+            Jarak ±{estDistance || "–"} cm
+          </span>
+          <span className="hidden inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground sm:inline-flex">
+            Latensi {cameraLatency} ms
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="ml-auto flex cursor-pointer items-center gap-2 text-sm font-medium text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={showSkeleton}
+              onChange={(e) => setShowSkeleton(e.target.checked)}
+              className="size-4 accent-teal-500"
+            />
+            Kerangka
+          </label>
+          {status === "running" && (
+            <button
+              onClick={stopCamera}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-500/20 dark:border-rose-900 dark:text-rose-400"
+            >
+              <CameraOff className="size-3.5" />
+              Matikan
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
